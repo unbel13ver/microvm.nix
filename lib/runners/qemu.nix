@@ -19,7 +19,7 @@ let
     else pkgs.qemu_kvm;
 
   inherit (microvmConfig) hostName vcpu mem balloonMem user interfaces shares socket forwardPorts devices graphics storeOnDisk kernel initrdPath storeDisk;
-  inherit (microvmConfig.qemu) extraArgs bios;
+  inherit (microvmConfig.qemu) extraArgs genericObject extraMachineArgs requirePci bios;
 
   inherit (import ../. { nixpkgs-lib = pkgs.lib; }) withDriveLetters;
   volumes = withDriveLetters microvmConfig;
@@ -27,15 +27,15 @@ let
   arch = builtins.head (builtins.split "-" system);
   # PCI required by vfio-pci for PCI passthrough
   pciInDevices = lib.any ({ bus, ... }: bus == "pci") devices;
-  requirePci = shares != [] || pciInDevices;
+  pciIsRequired = shares != [] || pciInDevices || requirePci;
   machine = {
     x86_64-linux =
-      if requirePci
-      then "q35,accel=kvm:tcg,mem-merge=on,sata=off"
+      if pciIsRequired
+      then lib.concatStrings [ "q35,accel=kvm:tcg,mem-merge=on,sata=off" extraMachineArgs]
       else "microvm,accel=kvm:tcg,x-option-roms=off,pit=off,pic=off,rtc=off,mem-merge=on";
     aarch64-linux = "virt,gic-version=max,accel=kvm:tcg";
   }.${system};
-  devType = if requirePci
+  devType = if pciIsRequired
             then "pci"
             else "device";
   kernelPath = {
@@ -79,6 +79,10 @@ in {
     [
       "${qemu}/bin/qemu-system-${arch}"
       "-name" hostName
+    ] ++
+    lib.optionals (genericObject != []) [
+      "-object" genericObject
+    ] ++ [
       "-M" machine
       "-m" (toString (mem + balloonMem))
       "-smp" (toString vcpu)

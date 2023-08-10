@@ -357,6 +357,24 @@ in
       description = "Extra arguments to pass to qemu.";
     };
 
+    qemu.genericObject = mkOption {
+      type = with types; listOf str;
+      default = [];
+      description = "Generic object.";
+    };
+
+    qemu.extraMachineArgs = mkOption {
+      type = types.str;
+      default = "";
+      description = "Extra arguments to pass to qemu machine.";
+    };
+
+    qemu.requirePci = mkOption {
+      type = types.bool;
+      default = false;
+      description = "If PCI is required";
+    };
+
     qemu.bios = {
       enable = mkOption {
         type = types.bool;
